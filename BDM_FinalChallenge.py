@@ -59,6 +59,8 @@ cent_rel = cent_rel.withColumn("Clean R_HIGH_HN", regexp_replace(cent_rel["R_HIG
 # drop any rows with nulls
 cent_rel = cent_rel.na.drop()
 
+vio_rel.show()
+
 # county to borocode mapping for violation dataset
 # 1  = Manhattan: MAN,MH,MN,NEWY,NEW Y,NY
 # 2  = Bronx: BRONX,BX
