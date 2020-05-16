@@ -87,7 +87,7 @@ df = vio_clean.join(broadcast(cent_clean),
                    )
 
 
-df.select(df['PHYSICALID'], df['Year']).groupBy("PHYSICALID").pivot("Year",["2015","2016","2017","2018","2019"]).count().sort("PHYSICALID").na.fill(0).write.csv('/home/cmv398/BDM_FinalChallenge/test')
+df.select(df['PHYSICALID'], df['Year']).groupBy("PHYSICALID").pivot("Year",["2015","2016","2017","2018","2019"]).count().sort("PHYSICALID").na.fill(0).write.csv('test')
 
 
 
