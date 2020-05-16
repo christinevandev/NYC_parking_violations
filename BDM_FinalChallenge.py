@@ -68,6 +68,8 @@ cent_rel = cent_rel.na.drop()
 vio_rel = vio_rel.withColumn("MappedBorocode", f.when((f.col('Violation County') == "MAN") | (f.col('Violation County') == "MH") | (f.col('Violation County') == "MN") | (f.col('Violation County') == "NEWY") | (f.col('Violation County') == "NEW Y") | (f.col('Violation County') == "NY"),"1").when((f.col('Violation County') == "BX") | (f.col('Violation County') == "BRONX"), "2").when((f.col('Violation County') == "BK") | (f.col('Violation County') == "K") | (f.col('Violation County') == "KING") | (f.col('Violation County') == "KINGS"), "3").when((f.col('Violation County') == "Q") | (f.col('Violation County') == "QN") | (f.col('Violation County') == "QNS") | (f.col('Violation County') == "QU") | (f.col('Violation County') == "QUEEN"),"4").when((f.col('Violation County') == "R") | (f.col('Violation County') == "RICHMOND"), "5"))
 vio_rel = vio_rel.na.drop() #in case there were any incorrect counties recorded
 
+vio_rel.show()
+
 # add IsEven
 vio_rel = vio_rel.withColumn("IsEven", f.when((f.col('Clean House Number')%2 == 0), "yes").otherwise("no"))
 vio_rel.show()
@@ -77,6 +79,8 @@ vio_rel.show()
 vio_rel = vio_rel.drop("House Number","Issue Date","Violation County")
 cent_rel = cent_rel.drop("L_LOW_HN","L_HIGH_HN","R_LOW_HN","R_HIGH_HN")
 
+vio_rel.show()
+cent_rel.show()
 
 from pyspark.sql.functions import broadcast
 #df = vio_clean.join(broadcast(cent_clean), (((vio_clean["Street Name"]==cent_clean["FULL_STREE"])|(vio_clean["Street Name"]==cent_clean["FULL_STREE"]))&(vio_clean["MappedBorocode"]==cent_clean["Borocode"])&((vio_clean["IsEven"]=="yes")&(vio_clean["Clean House Number"]<=cent_clean["Clean R_HIGH_HN"])&(vio_clean["Clean House Number"]>=cent_clean["Clean R_Low_HN"]))))
@@ -92,6 +96,13 @@ df = vio_rel.join(broadcast(cent_rel),
 # cache dataframe
 df.cache()
 
+df.show()
 
 output = df.select(df['PHYSICALID'], df['Year']).groupBy("PHYSICALID").pivot("Year",["2015","2016","2017","2018","2019"]).count().sort("PHYSICALID").na.fill(0)
 output.write.csv('test_opt')
+
+
+
+
+
+
