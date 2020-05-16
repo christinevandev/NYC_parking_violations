@@ -32,8 +32,8 @@ spark = SparkSession.builder.getOrCreate()
 # read data
 # violations = spark.read.csv('pv_randomSample.csv', header=True, multiLine=True, escape='"', inferSchema=True)
 # centerlines = spark.read.csv('Centerline.csv', header=True, multiLine=True, escape='"', inferSchema=True)
-violations = spark.read.csv('pv_randomSample.csv', header=True, inferSchema=True)
-centerlines = spark.read.csv('Centerline.csv', header=True, inferSchema=True)
+violations = spark.read.csv('hdfs:///tmp/bdm/nyc_parking_violation/', header=True, inferSchema=True)
+centerlines = spark.read.csv('hdfs:///tmp/bdm/nyc_cscl.csv', header=True, inferSchema=True)
 
 
 # ### Preprocessing
