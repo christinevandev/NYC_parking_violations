@@ -273,7 +273,7 @@ df.dtypes
 # In[151]:
 
 vio_rel.unpersist()
-clean_rel.unpersist()
+cent_rel.unpersist()
 output = df.select(df['PHYSICALID'], df['Year']).groupBy("PHYSICALID").pivot("Year",["2015","2016","2017","2018","2019"]).count().sort("PHYSICALID").na.fill(0)
 
 
