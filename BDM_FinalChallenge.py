@@ -275,7 +275,7 @@ df.dtypes
 vio_rel.unpersist()
 cent_rel.unpersist()
 output = df.select(df['PHYSICALID'], df['Year']).groupBy("PHYSICALID").pivot("Year",["2015","2016","2017","2018","2019"]).count().sort("PHYSICALID").na.fill(0)
-output.write.csv('final2')
+output.write.csv('final3.csv')
 
 
 # In[153]:
