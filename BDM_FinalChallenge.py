@@ -176,7 +176,7 @@ cent_rel.show()
 
 
 c1 = cent_rel.drop("FULL_STREE")
-c2 = cent_rel.drop("ST_LABEL").
+c2 = cent_rel.drop("ST_LABEL")
 
 
 # In[ ]:
