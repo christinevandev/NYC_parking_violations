@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[334]:
-
-
 from pyspark import SparkContext
 from pyspark.sql.session import SparkSession
 from pyspark.sql.functions import countDistinct
@@ -20,30 +14,37 @@ from pyspark.sql.functions import regexp_replace
 from pyspark.sql import functions as f
 spark = SparkSession.builder.getOrCreate()
 
+
 # read data
 # violations = spark.read.csv('pv_randomSample.csv', header=True, multiLine=True, escape='"', inferSchema=True)
 # centerlines = spark.read.csv('Centerline.csv', header=True, multiLine=True, escape='"', inferSchema=True)
 violations = spark.read.csv('hdfs:///tmp/bdm/nyc_parking_violation/', header=True, inferSchema=True)
 centerlines = spark.read.csv('hdfs:///tmp/bdm/nyc_cscl.csv', header=True, inferSchema=True)
 
-
 vio_rel = violations.select(violations['House Number'], upper(violations['Street Name']).alias('Street Name'), upper(violations['Violation County']).alias('Violation County'), violations['Issue Date'])
 # extract year from date
 vio_rel = vio_rel.withColumn('Year', vio_rel['Issue Date'].substr(-4,4))
 # filter for relevant years
+# vio_rel = vio_rel.filter((vio_rel["Year"]>"2014")&(vio_rel["Year"]<"2020"))
 vio_rel = vio_rel.filter((vio_rel["Year"]=="2015")|(vio_rel["Year"] == "2016")|(vio_rel["Year"] == "2017")|(vio_rel["Year"] == "2018")|(vio_rel["Year"] == "2019"))
 
 cent_rel = centerlines.select(centerlines['PHYSICALID'], upper(centerlines['FULL_STREE']).alias('FULL_STREE'), upper(centerlines['ST_LABEL']).alias('ST_LABEL'), centerlines['BOROCODE'], centerlines['L_LOW_HN'], centerlines['L_HIGH_HN'], centerlines['R_LOW_HN'], centerlines['R_HIGH_HN'])
 
+# cache dataframes
+vio_rel.cache()
+cent_rel.cache()
+
 
 # drop rows with nulls
-vio = vio_rel.na.drop()
-cent = cent_rel.na.drop()
+vio_rel = vio_rel.na.drop()
+cent_rel = cent_rel.na.drop()
+
 
 # violation data preprocessing
 #vio_clean = vio.withColumn("Clean House Number", regexp_replace(vio["House Number"], "[- ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz]", "").cast(IntegerType()))
-vio_clean = vio.withColumn("Clean House Number", regexp_replace(vio["House Number"], "[- ]", "").cast(IntegerType()))
-vio_clean = vio_clean.na.drop()
+vio_rel = vio_rel.withColumn("Clean House Number", regexp_replace(vio_rel["House Number"], "[- ]", "").cast(IntegerType()))
+vio_rel = vio_rel.na.drop()
+
 
 # centerline data preprocessing
 # clean the house number ranges
@@ -51,13 +52,12 @@ vio_clean = vio_clean.na.drop()
 # cent_clean = cent_clean.withColumn("Clean L_HIGH_HN", regexp_replace(cent["L_HIGH_HN"], "[- ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz]", "").cast(IntegerType()))
 # cent_clean = cent_clean.withColumn("Clean R_LOW_HN", regexp_replace(cent["R_LOW_HN"], "[- ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz]", "").cast(IntegerType()))
 # cent_clean = cent_clean.withColumn("Clean R_HIGH_HN", regexp_replace(cent["R_HIGH_HN"], "[- ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz]", "").cast(IntegerType()))
-cent_clean = cent.withColumn("Clean L_LOW_HN", regexp_replace(cent["L_LOW_HN"], "[- ]", "").cast(IntegerType()))
-cent_clean = cent_clean.withColumn("Clean L_HIGH_HN", regexp_replace(cent["L_HIGH_HN"], "[- ]", "").cast(IntegerType()))
-cent_clean = cent_clean.withColumn("Clean R_LOW_HN", regexp_replace(cent["R_LOW_HN"], "[- ]", "").cast(IntegerType()))
-cent_clean = cent_clean.withColumn("Clean R_HIGH_HN", regexp_replace(cent["R_HIGH_HN"], "[- ]", "").cast(IntegerType()))
+cent_rel = cent_rel.withColumn("Clean L_LOW_HN", regexp_replace(cent_rel["L_LOW_HN"], "[- ]", "").cast(IntegerType()))
+cent_rel = cent_rel.withColumn("Clean L_HIGH_HN", regexp_replace(cent_rel["L_HIGH_HN"], "[- ]", "").cast(IntegerType()))
+cent_rel = cent_rel.withColumn("Clean R_LOW_HN", regexp_replace(cent_rel["R_LOW_HN"], "[- ]", "").cast(IntegerType()))
+cent_rel = cent_rel.withColumn("Clean R_HIGH_HN", regexp_replace(cent_rel["R_HIGH_HN"], "[- ]", "").cast(IntegerType()))
 # drop any rows with nulls
-cent_clean = cent_clean.na.drop()
-
+cent_rel = cent_rel.na.drop()
 
 # county to borocode mapping for violation dataset
 # 1  = Manhattan: MAN,MH,MN,NEWY,NEW Y,NY
@@ -65,44 +65,33 @@ cent_clean = cent_clean.na.drop()
 # 3  = Brooklyn: BK,K,KING,KINGS
 # 4  = Queens: Q,QN,QNS,QU,QUEEN
 # 5  = Staten Island: R,RICHMOND
-vio_clean = vio_clean.withColumn("MappedBorocode", f.when((f.col('Violation County') == "MAN") | (f.col('Violation County') == "MH") | (f.col('Violation County') == "MN") | (f.col('Violation County') == "NEWY") | (f.col('Violation County') == "NEW Y") | (f.col('Violation County') == "NY"),"1").when((f.col('Violation County') == "BX") | (f.col('Violation County') == "BRONX"), "2").when((f.col('Violation County') == "BK") | (f.col('Violation County') == "K") | (f.col('Violation County') == "KING") | (f.col('Violation County') == "KINGS"), "3").when((f.col('Violation County') == "Q") | (f.col('Violation County') == "QN") | (f.col('Violation County') == "QNS") | (f.col('Violation County') == "QU") | (f.col('Violation County') == "QUEEN"),"4").when((f.col('Violation County') == "R") | (f.col('Violation County') == "RICHMOND"), "5"))
-vio_clean = vio_clean.na.drop() #in case there were any incorrect counties recorded
-
+vio_rel = vio_rel.withColumn("MappedBorocode", f.when((f.col('Violation County') == "MAN") | (f.col('Violation County') == "MH") | (f.col('Violation County') == "MN") | (f.col('Violation County') == "NEWY") | (f.col('Violation County') == "NEW Y") | (f.col('Violation County') == "NY"),"1").when((f.col('Violation County') == "BX") | (f.col('Violation County') == "BRONX"), "2").when((f.col('Violation County') == "BK") | (f.col('Violation County') == "K") | (f.col('Violation County') == "KING") | (f.col('Violation County') == "KINGS"), "3").when((f.col('Violation County') == "Q") | (f.col('Violation County') == "QN") | (f.col('Violation County') == "QNS") | (f.col('Violation County') == "QU") | (f.col('Violation County') == "QUEEN"),"4").when((f.col('Violation County') == "R") | (f.col('Violation County') == "RICHMOND"), "5"))
+vio_rel = vio_rel.na.drop() #in case there were any incorrect counties recorded
 
 # add IsEven
-vio_clean = vio_clean.withColumn("IsEven", f.when((f.col('Clean House Number')%2 == 0), "yes").otherwise("no"))
+vio_rel = vio_rel.withColumn("IsEven", f.when((f.col('Clean House Number')%2 == 0), "yes").otherwise("no"))
+vio_rel.show()
 
 # drop unused columns before the join
-vio_clean = vio_clean.drop("House Number","Issue Date","Violation County")
-cent_clean = cent_clean.drop("L_LOW_HN","L_HIGH_HN","R_LOW_HN","R_HIGH_HN")
+#df = df.drop("address", "phoneNumber")
+vio_rel = vio_rel.drop("House Number","Issue Date","Violation County")
+cent_rel = cent_rel.drop("L_LOW_HN","L_HIGH_HN","R_LOW_HN","R_HIGH_HN")
+
 
 from pyspark.sql.functions import broadcast
+#df = vio_clean.join(broadcast(cent_clean), (((vio_clean["Street Name"]==cent_clean["FULL_STREE"])|(vio_clean["Street Name"]==cent_clean["FULL_STREE"]))&(vio_clean["MappedBorocode"]==cent_clean["Borocode"])&((vio_clean["IsEven"]=="yes")&(vio_clean["Clean House Number"]<=cent_clean["Clean R_HIGH_HN"])&(vio_clean["Clean House Number"]>=cent_clean["Clean R_Low_HN"]))))
 
-df = vio_clean.join(broadcast(cent_clean), 
+df = vio_rel.join(broadcast(cent_rel), 
                     (
-                        ((vio_clean["Street Name"]==cent_clean["FULL_STREE"])|(vio_clean["Street Name"]==cent_clean["ST_LABEL"]))
-                        &(vio_clean["MappedBorocode"]==cent_clean["Borocode"])
-                        &(((vio_clean["IsEven"]=="yes")&(vio_clean["Clean House Number"]<=cent_clean["Clean R_HIGH_HN"])&(vio_clean["Clean House Number"]>=cent_clean["Clean R_LOW_HN"]))|((vio_clean["IsEven"]=="no")&(vio_clean["Clean House Number"]<=cent_clean["Clean L_HIGH_HN"])&(vio_clean["Clean House Number"]>=cent_clean["Clean L_LOW_HN"])))
+                        (vio_rel["MappedBorocode"]==cent_rel["Borocode"])
+                        &((vio_rel["Street Name"]==cent_rel["FULL_STREE"])|(vio_rel["Street Name"]==cent_rel["ST_LABEL"]))
+                        &(((vio_rel["IsEven"]=="yes")&(vio_rel["Clean House Number"]<=cent_rel["Clean R_HIGH_HN"])&(vio_rel["Clean House Number"]>=cent_rel["Clean R_LOW_HN"]))|((vio_rel["IsEven"]=="no")&(vio_rel["Clean House Number"]<=cent_rel["Clean L_HIGH_HN"])&(vio_rel["Clean House Number"]>=cent_rel["Clean L_LOW_HN"])))
                     )
                    )
 
-
-df.select(df['PHYSICALID'], df['Year']).groupBy("PHYSICALID").pivot("Year",["2015","2016","2017","2018","2019"]).count().sort("PHYSICALID").na.fill(0).write.csv('/home/cmv398/BDM_FinalChallenge/test/test')
-
-
+# cache dataframe
+df.cache()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+output = df.select(df['PHYSICALID'], df['Year']).groupBy("PHYSICALID").pivot("Year",["2015","2016","2017","2018","2019"]).count().sort("PHYSICALID").na.fill(0)
+output.write.csv('test_opt')
