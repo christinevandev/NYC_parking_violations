@@ -12,6 +12,10 @@ from pyspark.sql import functions as f
 sc = SparkContext()
 spark = SparkSession(sc)
 
+#start time
+import datetime as datetime
+start = datetime.datetime.now()
+
 # read data
 violations = spark.read.csv('hdfs:///tmp/bdm/nyc_parking_violation/', header=True, inferSchema=True)
 centerlines = spark.read.csv('hdfs:///tmp/bdm/nyc_cscl.csv', header=True, inferSchema=True)
@@ -92,8 +96,10 @@ new_cent = cent_rel.select("PHYSICALID").withColumnRenamed('PHYSICALID','allIDS'
 cond = [new_cent.allIDS == output.PHYSICALID]
 finaldf = new_cent.join(broadcast(output), cond,'left_outer').drop('PHYSICALID').na.fill(0).distinct().sort('allIDS')
 
-finaldf.write.csv('cmv3')
+finaldf.write.csv('cmv4')
 finaldf.show()
+
+print("Run time: ",datetime.datetime.now() - start)
 
 
 
