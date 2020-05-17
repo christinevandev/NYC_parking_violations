@@ -96,8 +96,8 @@ new_cent = cent_rel.select("PHYSICALID").withColumnRenamed('PHYSICALID','allIDS'
 cond = [new_cent.allIDS == output.PHYSICALID]
 finaldf = new_cent.join(broadcast(output), cond,'left_outer').drop('PHYSICALID').na.fill(0).distinct().sort('allIDS')
 
-finaldf.write.csv('cmv4')
-finaldf.show()
+finaldf.write.csv('cmv5')
+finaldf.show(200)
 
 print("Run time: ",datetime.datetime.now() - start)
 
