@@ -90,7 +90,7 @@ output = output.withColumn('slope', sm.OLS([output['2015'],output['2016'],output
 new_cent = cent_rel.select("PHYSICALID").withColumnRenamed('PHYSICALID','allIDS')
 
 cond = [new_cent.allIDS == output.PHYSICALID]
-finaldf = new_cent.join(broadcast(output), cond,'left_outer').drop('PHYSICALID').na.fill(0).sort('allIDS')
+finaldf = new_cent.join(broadcast(output), cond,'left_outer').drop('PHYSICALID').na.fill(0).distinct().sort('allIDS')
 
 finaldf.write.csv('cmv2')
 finaldf.show()
